@@ -505,8 +505,19 @@ public class OrcaUnobfuscator {
 
     private void reloadAllInternal() {
         Logger.verbose("Loading class " + CLASS_TYPING_INDICATOR_DISPATCHER);
-        mUnobfuscatedClasses.put(CLASS_TYPING_INDICATOR_DISPATCHER, loadTypingIndicatorDispatcher());
+        try {
+            mUnobfuscatedClasses.put(CLASS_TYPING_INDICATOR_DISPATCHER, loadTypingIndicatorDispatcher());
+        } catch (Throwable t) {
+            Logger.error(t);
+            mUnobfuscatedClasses.put(CLASS_TYPING_INDICATOR_DISPATCHER, null);
+        }
 
+        Logger.verbose("Loading api " + API_MESSAGE_SEEN);
+        mUnobfuscatedApis.put(API_MESSAGE_SEEN, loadAPIMessageSeen());
+    }
+
+    @SuppressWarnings("unused")
+    private void reloadLegacyComponents() {
         Logger.verbose("Loading class " + CLASS_REMOVE_NOTIFICATION_ON_UNSENT);
         mUnobfuscatedClasses.put(CLASS_REMOVE_NOTIFICATION_ON_UNSENT, loadRemoveNotificationOnUnsent());
         Logger.verbose("Loading method " + METHOD_MESSAGE_GETTEXT);
@@ -543,7 +554,5 @@ public class OrcaUnobfuscator {
         mUnobfuscatedApis.put(API_CONVERSATION_ENTER, loadAPIConversationEnter());
         Logger.verbose("Loading api " + API_CONVERSATION_LEAVE);
         mUnobfuscatedApis.put(API_CONVERSATION_LEAVE, loadAPIConversationLeave());
-        Logger.verbose("Loading api " + API_MESSAGE_SEEN);
-        mUnobfuscatedApis.put(API_MESSAGE_SEEN, loadAPIMessageSeen());
     }
 }

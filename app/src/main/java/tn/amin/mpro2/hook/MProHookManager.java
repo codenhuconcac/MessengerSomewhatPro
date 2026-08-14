@@ -22,12 +22,16 @@ public class MProHookManager extends HookManager {
     }
 
     private void initHooks() {
+        addHook(new SeenIndicatorHook());
+        addHook(new TypingIndicatorSentHook());
+    }
+
+    @SuppressWarnings("unused")
+    private void initLegacyHooks() {
         addHook(new ConversationEnterHook());
         addHook(new ConversationLeaveHook());
-        addHook(new SeenIndicatorHook());
         addHook(new MessageSentHook());
         addHook(new MessageReceivedHook());
-        addHook(new TypingIndicatorSentHook());
         addHook(new TypingIndicatorReceivedHook());
         addHook(new CameraLaunchHook());
         addHook(new MediaTranscoderHook());

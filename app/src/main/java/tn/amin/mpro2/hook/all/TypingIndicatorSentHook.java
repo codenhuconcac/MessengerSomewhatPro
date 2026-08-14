@@ -9,6 +9,7 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import tn.amin.mpro2.constants.OrcaClassNames;
+import tn.amin.mpro2.debug.Logger;
 import tn.amin.mpro2.hook.BaseHook;
 import tn.amin.mpro2.hook.HookId;
 import tn.amin.mpro2.hook.HookTime;
@@ -29,42 +30,58 @@ public class TypingIndicatorSentHook extends BaseHook {
 
     @Override
     protected Set<XC_MethodHook.Unhook> injectInternal(OrcaGateway gateway) {
-        Class<?> TypingIndicatorDispatcher = gateway.unobfuscator.getClass(OrcaUnobfuscator.CLASS_TYPING_INDICATOR_DISPATCHER);
-
-        if (TypingIndicatorDispatcher == null)
-            throw new RuntimeException(OrcaUnobfuscator.CLASS_TYPING_INDICATOR_DISPATCHER + " is null");
-
-
         Set<XC_MethodHook.Unhook> unhooks = new HashSet<>();
-        final Class<?> MailboxSDKJNI = XposedHelpers.findClass(OrcaClassNames.MAILBOX_SDK_JNI, gateway.classLoader);
-        unhooks.addAll(XposedBridge.hookAllMethods(MailboxSDKJNI, "dispatchVOOOOZ", wrap(new XC_MethodHook() {
-            @Override
-            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                if (param.args[1].getClass().getName().equals(OrcaClassNames.MAILBOX) &&
-                        (Boolean.TRUE.equals(param.args[param.args.length-1]))
-                ) {
-                    notifyListenersWithResult((listener) -> ((TypingIndicatorSentListener) listener).onTypingIndicatorSent());
-                    boolean allowTypingIndicator = !getListenersReturnValue().isConsumed || (Boolean) getListenersReturnValue().value;
-                    if (!allowTypingIndicator) {
-                        param.args[param.args.length-1] = Boolean.FALSE;
+        Class<?> typingIndicatorDispatcher = gateway.unobfuscator.getClass(
+                OrcaUnobfuscator.CLASS_TYPING_INDICATOR_DISPATCHER);
+        final Class<?> MailboxSDKJNI = XposedHelpers.findClass(
+                OrcaClassNames.MAILBOX_SDK_JNI, gateway.classLoader);
+        unhooks.addAll(XposedBridge.hookAllMethods(
+                MailboxSDKJNI, "dispatchVOOOZ", wrap(new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        if (param.args.length < 2 || !isMailbox(param.args[1]) ||
+                                !Boolean.TRUE.equals(param.args[param.args.length - 1])) return;
+                        if (!notifyTypingListener()) {
+                            param.args[param.args.length - 1] = Boolean.FALSE;
+                        }
                     }
-                }
-            }
-        })));
+                })));
 
-        Method dispatchTypingIndicator = TypingIndicatorDispatcher.getMethods()[0];
-        unhooks.add(XposedBridge.hookMethod(dispatchTypingIndicator, wrap(new XC_MethodHook() {
-            @Override
-            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                notifyListenersWithResult((listener) -> ((TypingIndicatorSentListener) listener).onTypingIndicatorSent());
-                boolean allowTypingIndicator = !getListenersReturnValue().isConsumed || (Boolean) getListenersReturnValue().value;
-                if (!allowTypingIndicator) {
-                    param.setResult(null);
+        if (typingIndicatorDispatcher != null) {
+            try {
+                Method dispatchTypingIndicator = typingIndicatorDispatcher.getDeclaredMethod("run");
+                if (dispatchTypingIndicator.getParameterCount() != 0 ||
+                        dispatchTypingIndicator.getReturnType() != void.class) {
+                    throw new NoSuchMethodException("Typing dispatcher run() has an unexpected signature");
                 }
+                unhooks.add(XposedBridge.hookMethod(dispatchTypingIndicator, wrap(new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        if (!notifyTypingListener()) param.setResult(null);
+                    }
+                })));
+            } catch (NoSuchMethodException e) {
+                Logger.error(e);
             }
-        })));
+        } else {
+            Logger.verbose("TypingIndicatorDispatcher was not unobfuscated");
+        }
 
+        if (unhooks.isEmpty()) {
+            throw new RuntimeException("No typing indicator dispatch path was found");
+        }
         return unhooks;
+    }
+
+    private boolean notifyTypingListener() {
+        notifyListenersWithResult((listener) ->
+                ((TypingIndicatorSentListener) listener).onTypingIndicatorSent());
+        return !getListenersReturnValue().isConsumed ||
+                (Boolean) getListenersReturnValue().value;
+    }
+
+    private boolean isMailbox(Object value) {
+        return value != null && OrcaClassNames.MAILBOX.equals(value.getClass().getName());
     }
 
     public interface TypingIndicatorSentListener {

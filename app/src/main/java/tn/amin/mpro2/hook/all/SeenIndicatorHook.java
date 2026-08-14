@@ -32,45 +32,37 @@ public class SeenIndicatorHook extends BaseHook {
         var wrapped = wrap(new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                if (param.args.length < 4 || !(param.args[0] instanceof Number)) return;
+
                 Integer apiCode = gateway.unobfuscator.getAPICode(OrcaUnobfuscator.API_MESSAGE_SEEN);
+                boolean matchesApi = apiCode != null && apiCode >= 0 &&
+                        ((Number) param.args[0]).intValue() == apiCode;
+                boolean matchesFallbackShape = param.args.length == 5 &&
+                        isMailbox(param.args[1]) && param.args[2] instanceof String &&
+                        (param.args[3] == null || param.args[3] instanceof Number);
+                if (!matchesApi && !matchesFallbackShape) return;
 
-                // If api code is specified manually by user
-                if (apiCode >= 0) {
-                    if (apiCode == param.args[0]) {
-
-                        // Inside seen indicator dispatch
-                        notifyListenersWithResult((listener) -> ((SeenIndicatorListener) listener).onSeenIndicator());
-                        boolean allowSeen = !getListenersReturnValue().isConsumed || (Boolean) getListenersReturnValue().value;
-                        if (!allowSeen) {
-                            param.setResult(null);
-                        }
-                    }
-                }
-
-                // Fallback method
-                else if (
-                        (param.args[1].getClass().getName().equals(OrcaClassNames.MAILBOX) ||
-                                param.args[2].getClass().getName().equals(OrcaClassNames.MAILBOX)
-                ) &&
-                        (param.args[3] == null || param.args[3].getClass().getName().equals(Long.class.getName()))
-                ) {
-
-                    Logger.verbose("Inside seen indicator dispatch");
-                    // Inside seen indicator dispatch
-                    notifyListenersWithResult((listener) -> ((SeenIndicatorListener) listener).onSeenIndicator());
-                    boolean allowSeen = !getListenersReturnValue().isConsumed || (Boolean) getListenersReturnValue().value;
-                    Logger.verbose("AllowSeen: " + allowSeen);
-                    if (!allowSeen) {
-                        param.setResult(null);
-                    }
-                }
+                Logger.verbose("Inside unobfuscated seen indicator dispatch");
+				// Inside seen indicator dispatch
+                notifyListenersWithResult((listener) ->
+                        ((SeenIndicatorListener) listener).onSeenIndicator());
+                boolean allowSeen = !getListenersReturnValue().isConsumed ||
+                        (Boolean) getListenersReturnValue().value;
+				Logger.verbose("AllowSeen: " + allowSeen);
+                if (!allowSeen) param.setResult(null);
             }
         });
 
         Set<XC_MethodHook.Unhook> unhooks = new HashSet<>();
-        unhooks.addAll(XposedBridge.hookAllMethods(MailboxSDKJNI, "dispatchVOOOOO", wrapped)); // old
-        unhooks.addAll(XposedBridge.hookAllMethods(MailboxSDKJNI, "dispatchVJOOOO", wrapped));
+        unhooks.addAll(XposedBridge.hookAllMethods(MailboxSDKJNI, "dispatchVOOOO", wrapped));
+        if (unhooks.isEmpty()) {
+            throw new RuntimeException("No seen indicator dispatch shape was found");
+        }
         return unhooks;
+    }
+
+    private boolean isMailbox(Object value) {
+        return value != null && OrcaClassNames.MAILBOX.equals(value.getClass().getName());
     }
 
     public interface SeenIndicatorListener {

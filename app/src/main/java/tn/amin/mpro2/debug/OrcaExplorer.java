@@ -30,6 +30,7 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import tn.amin.mpro2.BuildConfig;
+import tn.amin.mpro2.constants.ModuleInfo;
 import tn.amin.mpro2.constants.OrcaClassNames;
 import tn.amin.mpro2.debug.methodhook.MethodHookLogParams;
 import tn.amin.mpro2.orca.OrcaGateway;
@@ -41,6 +42,14 @@ public class OrcaExplorer {
     }
 
     public static void explore(final OrcaGateway gateway, Context context) {
+        if (gateway.state != null &&
+                gateway.state.getOrcaVersion() >= ModuleInfo.MIN_ORCA_VERSION &&
+                gateway.state.getOrcaVersion() <= ModuleInfo.MAX_ORCA_VERSION) {
+            Logger.info("skipping exploration hooks cuz the app version is not " +
+                    ModuleInfo.RECOMMENDED_ORCA_VERSION_STRING);
+            return;
+        }
+
         ClassLoader classLoader = gateway.classLoader;
         hookAllDispatch("Core", classLoader);
         hookAllDispatch("SDK", classLoader);

@@ -26,6 +26,13 @@ public class MProFeatureManager extends FeatureManager {
     }
 
     public void initFeatures(OrcaGateway gateway) {
+        addFeature(new SettingsFeature(gateway));
+        addFeature(new UnseenFeature(gateway));
+        addFeature(new UntypingFeature(gateway));
+    }
+
+    @SuppressWarnings("unused")
+    private void initLegacyFeatures(OrcaGateway gateway) {
         // Internal features
         addFeature(new ThreadKeyDetectorFeature(gateway));
 
@@ -33,15 +40,12 @@ public class MProFeatureManager extends FeatureManager {
         addFeature(new AttachFileFeature(gateway));
         addFeature(new CopyThreadKeyFeature(gateway));
         addFeature(new ConversationLockFeature(gateway));
-        addFeature(new SettingsFeature(gateway));
         addFeature(new TranslationFeature(gateway));
         addFeature(new ColorThemingFeature(gateway));
 
         // Normal features
         addFeature(new CommandsFeature(gateway));
         addFeature(new FormattingFeature(gateway));
-        addFeature(new UnseenFeature(gateway));
-        addFeature(new UntypingFeature(gateway));
         addFeature(new DefaultCameraFeature(gateway));
         addFeature(new MediaTranscodeFeature(gateway));
         addFeature(new AdBlockFeature(gateway));
