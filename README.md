@@ -1,6 +1,6 @@
 # Messenger Pro
 
-I just did this to make the prevent seen and prevent typing indicators work in the new version, other features probably won't work
+I did this just to make the prevent seen and prevent typing indicators work in the new version, other features probably won't work
 
 ## Credits
 
