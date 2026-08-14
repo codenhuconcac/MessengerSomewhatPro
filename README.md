@@ -1,6 +1,6 @@
 # Messenger Pro
 
-This fork is mainly maintained to prevent the "message seen" and the typing indicator
+I just did this to make the prevent seen and prevent typing indicators work in the new version, other features probably won't work
 
 ## Credits
 
